@@ -1,0 +1,43 @@
+package(
+    default_visibility = [
+        "//tensorflow_serving:internal",
+    ],
+    features = ["-layering_check"],
+)
+
+cc_library(
+    name = "lua",
+    visibility = ["//visibility:public"],
+    srcs = glob(
+    ["deps/lua/src/*.h", "deps/lua/src/*.c"],
+    exclude=["deps/lua/src/lua.c", "deps/lua/src/luac.c"]
+    ),
+    copts = ["-std=gnu99", "-O2", "-DLUA_COMPAT_5_2"],
+    linkopts = ["-ldl"],
+    includes = ["./"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "assembler_ops",
+    visibility = ["//visibility:public"],
+    srcs = glob(["assembler/*.h",
+                 "assembler/*.cpp",
+                 "assembler/*.c",
+                 "deps/jsoncpp/*.cpp",
+                 "deps/jsoncpp/json/*.h",
+                 "deps/murmurhash3/*.h",
+                 "deps/murmurhash3/*.cpp",
+                 "ops/*.cc",
+                 "deps/lua/src/*.h",
+                 ]),
+    copts = ["-std=c++11", "-O2"],
+    linkopts = [],
+    deps = ["@org_tensorflow//tensorflow/core:framework_headers_lib",
+            "@org_tensorflow//tensorflow/core/util/ctc",
+            "@org_tensorflow//third_party/eigen3",
+            "//tensorflow_serving/easyctr:lua",
+    ],
+    includes = ["./"],
+    alwayslink = 1,  # 非常关键，强制链接进二进制，不加这行还是无效
+)

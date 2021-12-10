@@ -1,0 +1,53 @@
+
+cc_library(
+    name = "lua",
+    srcs = glob([
+        './deps/lua/src/*.c',
+    ]),
+
+    incs = [
+        './deps/lua/src',
+    ],
+
+	extra_cppflags = [
+        '-DLUA_COMPAT_5_2',
+        '-std=gnu99',
+        '-O2',
+        '-Wall',
+        '-Wno-deprecated-declarations',
+        '-Wno-deprecated',
+        '-Wno-float-equal',
+    ]
+)
+
+cc_library(
+    name = 'libeasyctr',
+    srcs = glob([
+        './assembler/*.cpp',
+        './assembler/*.cc',
+        './ops/*.cc',
+        './deps/jsoncpp/*.cpp',
+        './deps/murmurhash3/*.cpp',
+    ]),
+    deps = [
+        ':lua',
+        '//libstatic:tensorflow-core',
+        '//libstatic:nsync',
+        '#pthread',
+        '#dl',
+        '#z',
+    ],
+
+    incs = [
+        '../tensorflow/include',
+        './',
+    ],
+
+	extra_cppflags = [
+        '-DLUA_COMPAT_5_2',
+        '-Wall',
+        '-Wno-deprecated-declarations',
+        '-Wno-deprecated',
+        '-Wno-float-equal',
+    ]
+)

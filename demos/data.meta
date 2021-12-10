@@ -1,0 +1,5 @@
+id name type class
+101 i_kd_union_tags string_list item
+102 u_kd_portrait_tags weighted_string_list user
+103 u_kd_behavior_play_history_longv triple_list user
+104 u_kd_base_age int user

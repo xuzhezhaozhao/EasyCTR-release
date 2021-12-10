@@ -1,0 +1,474 @@
+
+##############
+# 模型配置参数收拢
+# 格式: key=value, '=' 两边不能有空格
+# 使用方式: source model.conf.default
+##############
+
+model_name=`basename $(cd .. && pwd)`-`basename $(pwd)`
+
+# label生成方式 & 配置文件
+generate_samples_script=
+conf_script=
+
+# meta 文件路径
+meta_file=../../meta/data.meta
+
+# 下载数据
+train_data_path=hdfs://ss-sng-dc-v2//stage/outface/SNG/g_sng_qqkd_sng_buluo_kd_video_group/kbv_train_data_hourly
+num_train_data=168         # 训练数据量
+num_train_data_expired=7   # 训练数据过期时间, day
+num_download_thread=12           # 下载线程数, 不宜过大
+preprocess_script=../../../deps/easyctr/tools/train/preprocess.sh
+merge_data_python_script=../../../deps/easyctr/tools/train/merge_data.py
+shuffle_data=false               # 分区之间 shuffle 数据
+shuffle_data_in_hour=false       # 分区内 shuffle 数据
+split_lines_per_file=100000      # 将大文件切成若干小文件，每个小文件行数
+test_data_type=last              # average: 每个小时取 5%; last: 取最后 num_test_data 数据
+do_plus_train=true
+num_test_data=1            # 测试数据取用的数
+min_line_count=1000
+exit_on_error=true
+num_extra_check=1          # 额外检查一些数据，应对数据出问题的特殊情况
+compression_type=''              # '' (不压缩), GZIP
+num_compression_thread=2
+num_reserved=7
+do_string_index=true
+force_not_delete_data=false       # 强制不自动删除数据
+use_incremental_training=false   # 是否增量训练
+use_optimized_gs_script=false
+hdfs_download_thread=30
+skip_num_thr=8
+use_adagrad_shrinkage=false   # 每次启动训练时是否进行 adagrad 梯度衰减
+adagrad_shrinkage_rate=0.99   # adagrad 梯度衰减系数
+
+# hive flags
+hive_page_type=0
+hive_cv_label_thr=0
+hive_media_type=1,2
+hive_cv_type=-1
+hive_sql="""
+SELECT
+    t.ad_sample
+FROM
+(
+    SELECT
+        ad_sample,
+        1 AS rid,
+        random
+    FROM
+        es2_ads_prd.da_am_reflow_model_sample
+    WHERE
+        day = '@download_data_day@'
+        AND cv_type in (@hive_cv_type@)
+        AND media_type in (@hive_media_type@)
+        AND cv_label >= @hive_cv_label_thr@
+        AND page_type in (@hive_page_type@)
+    ORDER BY
+        random
+    LIMIT 1000000000
+) t
+WHERE
+    t.rid = 1
+"""
+
+# predict data flags
+ts=`date +%Y_%m_%d_%H_%M`
+data_dir=`pwd -P`/data/data
+log_dir=`pwd -P`/data/log
+predict_data_path=${data_dir}/eval_files.txt
+predict_keys_path=${data_dir}/candidate_items.txt
+predict_output_file=${log_dir}/predict_output.txt
+predict_and_target_file=${log_dir}/predict_and_target.txt.${ts}
+calc_diff_extra_id=-1    # 特征ID
+
+# easyrecall flags
+run_mode=easyctr  # easyctr, easyrecall
+easyrecall_candidate_items_min_count=1
+easyrecall_candidate_items_top_k=-1
+hdfs_easyrecall_candidate_items_path=hdfs://hdfs_easyrecall_candidate_items_path
+easyrecall_download_candidata_items_script=/usr/local/services/kd_tools_easy_ctr-1.0/tools/train/easyrecall/download.sh
+
+# spark fuel flags
+use_spark_fuel=false
+sf_hdfs_root_dir=''
+num_ps=1
+start_delay_secs=120
+throttle_secs=600
+eval_steps_every_checkpoint=100
+
+# nce flags
+use_negative_sampling=false
+nce_count=5
+nce_items_min_count=10
+nce_items_top_k=-1
+nce_items_path='data/data/candidate_items/data.txt.sorted'
+
+# 模型推送到hdfs base 路径, 最终路径需要拼上包名
+export_model_hdfs_basedir=/region04/36470/app/product/aimaker/reflow/
+export_model_num_outdate_days=15  # hdfs 会清理过期模型，最大保留天数
+
+# 模型参数
+epoch=1
+batch_size=512
+eval_batch_size=1024
+max_train_steps=-1
+max_eval_steps=-1
+shuffle_size=2000
+shuffle_batch=false
+
+model_type=wide_deep
+model_slots=dnn
+extend_feature_mode=''   # fgcnn
+deepx_mode='classifier'  # classifier, regressor
+
+# dssm
+dssm_mode=dot                 # dot, concat, cosine
+dssm1_hidden_units=512,256,128
+dssm1_activation_fn=relu
+dssm1_dropout=0.0
+dssm1_gaussian_dropout=0.0
+dssm1_batch_norm=false
+dssm1_layer_norm=false
+dssm1_use_resnet=false
+dssm1_use_densenet=false
+dssm2_hidden_units=512,256,128
+dssm2_activation_fn=relu
+dssm2_dropout=0.0
+dssm2_gaussian_dropout=0.0
+dssm2_batch_norm=false
+dssm2_layer_norm=false
+dssm2_use_resnet=false
+dssm2_use_densenet=false
+dssm_cosine_gamma=10.0
+
+# deepx models
+use_seperated_logits=false
+use_weighted_logits=false
+
+# FM
+fm_use_shared_embedding=true
+fm_use_project=false
+fm_project_size=32
+
+# FwFM
+fwfm_use_shared_embedding=true
+fwfm_use_project=false
+fwfm_project_size=32
+
+# afm
+afm_use_shared_embedding=true
+afm_use_project=false
+afm_project_size=32
+afm_hidden_unit=32
+
+# iafm
+iafm_use_shared_embedding=true
+iafm_use_project=false
+iafm_project_size=32
+iafm_hidden_unit=32
+iafm_field_dim=8
+
+# ifm
+ifm_use_shared_embedding=true
+ifm_use_project=false
+ifm_project_size=32
+ifm_hidden_unit=32
+ifm_field_dim=8
+
+# kfm
+kfm_use_shared_embedding=true
+kfm_use_project=false
+kfm_project_size=32
+
+# wkfm
+wkfm_use_shared_embedding=true
+wkfm_use_project=false
+wkfm_project_size=32
+wkfm_use_selector=false
+
+# nifm
+nifm_use_shared_embedding=true
+nifm_use_project=false
+nifm_project_size=32
+nifm_hidden_units=32,16
+nifm_activation_fn=relu
+nifm_dropout=0.0
+nifm_batch_norm=false
+nifm_layer_norm=false
+nifm_use_resnet=false
+nifm_use_densenet=false
+
+# cin
+cin_use_shared_embedding=true
+cin_use_project=false
+cin_project_size=32
+cin_hidden_feature_maps=128,128
+cin_split_half=true
+
+# cross
+cross_use_shared_embedding=true
+cross_use_project=false
+cross_project_size=32
+cross_num_layers=4
+
+# autoint
+autoint_use_shared_embedding=true
+autoint_use_project=false
+autoint_project_size=32
+autoint_size_per_head=16
+autoint_num_heads=6
+autoint_num_blocks=2
+autoint_dropout=0.0
+autoint_has_residual=true
+
+# dnn
+dnn_use_shared_embedding=true
+dnn_use_project=false
+dnn_project_size=32
+dnn_hidden_units=512,256,128
+dnn_activation_fn=relu
+dnn_dropout=0.0
+dnn_batch_norm=false
+dnn_layer_norm=false
+dnn_use_resnet=false
+dnn_use_densenet=false
+dnn_l2_regularizer=0.0
+
+# multi_dnn
+multi_dnn_use_shared_embedding=true
+multi_dnn_use_project=false
+multi_dnn_project_size=32
+multi_dnn_shared_hidden_units=128,128
+multi_dnn_tower_hidden_units=64,64
+multi_dnn_tower_use_shared_embedding=true
+multi_dnn_activation_fn=relu
+multi_dnn_dropout=0.0
+multi_dnn_batch_norm=false
+multi_dnn_layer_norm=false
+multi_dnn_use_resnet=false
+multi_dnn_use_densenet=false
+multi_dnn_l2_regularizer=0.0
+
+# nfm
+nfm_use_shared_embedding=true
+nfm_use_project=false
+nfm_project_size=32
+nfm_hidden_units=512,256,128
+nfm_activation_fn=relu
+nfm_dropout=0.0
+nfm_batch_norm=false
+nfm_layer_norm=false
+nfm_use_resnet=false
+nfm_use_densenet=false
+
+# nkfm
+nkfm_use_shared_embedding=true
+nkfm_use_project=false
+nkfm_project_size=32
+nkfm_hidden_units=512,256,128
+nkfm_activation_fn=relu
+nkfm_dropout=0.0
+nkfm_batch_norm=false
+nkfm_layer_norm=false
+nkfm_use_resnet=false
+nkfm_use_densenet=false
+
+# ccpm
+ccpm_use_shared_embedding=true
+ccpm_use_project=false
+ccpm_project_size=32
+ccpm_hidden_units=512,256,128
+ccpm_activation_fn=relu
+ccpm_dropout=0.0
+ccpm_batch_norm=false
+ccpm_layer_norm=false
+ccpm_use_resnet=false
+ccpm_use_densenet=false
+ccpm_kernel_sizes=3,3,3
+ccpm_filter_nums=4,3,2
+
+# ipnn
+ipnn_use_shared_embedding=true
+ipnn_use_project=false
+ipnn_project_size=32
+ipnn_hidden_units=512,256,128
+ipnn_activation_fn=relu
+ipnn_dropout=0.0
+ipnn_batch_norm=false
+ipnn_layer_norm=false
+ipnn_use_resnet=false
+ipnn_use_densenet=false
+ipnn_unordered_inner_product=false
+ipnn_concat_project=false
+
+# kpnn
+kpnn_use_shared_embedding=true
+kpnn_use_project=false
+kpnn_project_size=32
+kpnn_hidden_units=512,256,128
+kpnn_activation_fn=relu
+kpnn_dropout=0.0
+kpnn_batch_norm=false
+kpnn_layer_norm=false
+kpnn_use_resnet=false
+kpnn_use_densenet=false
+kpnn_concat_project=false
+
+# pin
+pin_use_shared_embedding=true
+pin_use_project=false
+pin_project_size=32
+pin_hidden_units=512,256,128
+pin_activation_fn=relu
+pin_dropout=0.0
+pin_batch_norm=false
+pin_layer_norm=false
+pin_use_resnet=false
+pin_use_densenet=false
+pin_use_concat=false
+pin_concat_project=false
+pin_subnet_hidden_units=64,32
+
+# fibinet
+fibinet_use_shared_embedding=true
+fibinet_use_project=false
+fibinet_project_size=32
+fibinet_hidden_units=512,256,128
+fibinet_activation_fn=relu
+fibinet_dropout=0.0
+fibinet_batch_norm=false
+fibinet_layer_norm=false
+fibinet_use_resnet=false
+fibinet_use_densenet=false
+fibinet_use_se=true
+fibinet_use_deep=true
+fibinet_interaction_type=bilinear
+fibinet_se_interaction_type=bilinear
+fibinet_se_use_shared_embedding=false
+
+# fgcnn
+fgcnn_use_shared_embedding=false
+fgcnn_use_project=false
+fgcnn_project_dim=32
+fgcnn_filter_nums=6,8
+fgcnn_kernel_sizes=7,7
+fgcnn_pooling_sizes=2,2
+fgcnn_new_map_sizes=3,3
+
+leaky_relu_alpha=0.2
+swish_beta=1.0
+
+loss_reduction=sum # mean, sum
+# Robust Bi-Tempered Logistic Loss Based on Bregman Divergences
+loss_fn=ce # ce, bi_tempered, focal, mape, huber
+bi_tempered_loss_t1=1.0         # 小于等于 1, 边界参数, t1=t2=1 则退化为 logistic loss
+bi_tempered_loss_t2=1.0         # 大于等于 1, 尾部参数
+bi_tempered_loss_label_smoothing=0.0
+bi_tempered_loss_num_iters=5
+focal_loss_gamma=2.0
+mape_loss_delta=0.0
+huber_loss_delta=1.0
+label_fn=default # default, log
+linear_sparse_combiner=mean   # sum or mean
+
+# deep 优化器参数
+deep_optimizer=adagrad
+deep_learning_rate=0.1
+deep_adadelta_rho=0.95
+deep_adagrad_initial_accumulator_value=0.1
+deep_adam_beta1=0.9
+deep_adam_beta2=0.999
+deep_lazy_adam_beta1=0.9
+deep_lazy_adam_beta2=0.999
+deep_opt_epsilon=1.0
+deep_ftrl_learning_rate_power=-0.5
+deep_ftrl_initial_accumulator_value=0.1
+deep_ftrl_l1=0.0
+deep_ftrl_l2=0.0
+deep_momentum=0.9
+deep_rmsprop_momentum=0.0
+deep_rmsprop_decay=0.9
+deep_proximal_adagrad_initial_accumulator_value=0.1
+deep_proximal_adagrad_l1=0.0
+deep_proximal_adagrad_l2=0.0
+deep_adamw_weight_decay_rate=0.01
+deep_adamw_beta1=0.9
+deep_adamw_beta2=0.999
+# fixed, exponential, polynomial
+# warmup, cosine (only valid for deep part)
+deep_learning_rate_decay_type=fixed
+deep_end_learning_rate=0.0001
+deep_decay_steps=10000
+deep_polynomial_decay_power=1.0
+deep_learning_rate_decay_factor=0.96
+deep_warmup_rate=0.3
+deep_cosine_decay_alpha=0.0
+
+# wide 优化器参数
+wide_optimizer=ftrl
+wide_learning_rate=0.005
+wide_adadelta_rho=0.95
+wide_adagrad_initial_accumulator_value=0.1
+wide_adam_beta1=0.9
+wide_adam_beta2=0.999
+wide_lazy_adam_beta1=0.9
+wide_lazy_adam_beta2=0.999
+wide_opt_epsilon=1.0
+wide_ftrl_learning_rate_power=-0.5
+wide_ftrl_initial_accumulator_value=0.1
+wide_ftrl_l1=0.0
+wide_ftrl_l2=0.0
+wide_momentum=0.9
+wide_rmsprop_momentum=0.9
+wide_rmsprop_decay=0.9
+wide_proximal_adagrad_initial_accumulator_value=0.1
+wide_proximal_adagrad_l1=0.0
+wide_proximal_adagrad_l2=0.0
+wide_learning_rate_decay_type=fixed
+wide_end_learning_rate=0.0001
+wide_decay_steps=10000
+wide_learning_rate_decay_factor=0.96
+wide_polynomial_decay_power=1.0
+
+# 其他模型参数
+num_gpus=0  # gpu卡数
+map_num_parallel_calls=10
+num_parallel_reads=1
+# tf 1.12.0 很奇怪，像是有bug, 这个值取太大会出现2种问题：
+# 1. 虽然有数据，但训练&评估 step 都为 0
+# 2. 抛异常: Cannot read negative number of bytes
+# 不知道数什么原因导致的
+read_buffer_size_mb=1024
+prefetch_size=4096
+save_summary_steps=1000
+save_checkpoints_steps=100000
+log_step_count_steps=1000
+keep_checkpoint_max=2
+do_profile=false
+profile_every_steps=1000
+result_output_file=data/log/eval_model.log
+auc_thr=0.6
+
+use_lua_sampler=false
+lua_sampler_script=''
+
+do_negative_sampling=false
+num_negative_sample=1
+
+# 企业微信消息负责人, 至少需要两个人, 否则无效
+rtx_reciever='samsonqi;tantanli'
+msg_title=''
+
+# debug 参数
+remove_model_dir=true
+do_merge_data=true
+do_generate_conf=true
+do_push_to_hdfs=true
+do_download_candidata_items=true
+
+# do flags
+do_train=true
+do_eval=true
+do_predict=true
+do_export=true
