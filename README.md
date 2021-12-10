@@ -343,27 +343,12 @@ def add_weighted_categorical(self, inames, places, oname=None)
 ```
 
 
-#### 10. attention (代码重构中，暂不支持)
-```
-def add_attention(self, inames, attention_query, dimension, combiner='mean', attention_type='din',
-                  attention_args=None, shared_embedding=False, oname=None)
-
-# inames 中每个特征都会与attention_query特征做attention处理
-#  attention_type
-#    din: alibaba din 论文中的attention方式
-#    mlp: 类似 din 方式，去除 weight scale 逻辑
-#  attention_args: python dict 类型, attention 方式的自定义参数, 例如MLP层数
-#  shared_embedding: 是否共享 embedding
-#
-#  Note: 会同时添加 attention 特征（如浏览历史）和 query 特征（如排序物品ID）
-```
-
 # 编译
 运行环境：
 - python 2.7.x
 - tensorflow 1.14.0
 
-因为需要编译[自定义 op](https://www.tensorflow.org/guide/extend/op), 所以可能需要[源码编译 tensorflow](https://www.tensorflow.org/install/install_sources)。
+因为需要编译[自定义 op](https://www.tensorflow.org/guide/extend/op), 所以需要[源码编译 tensorflow](https://www.tensorflow.org/install/install_sources)。
 
 serving 时需要用到自定义 op，所以需要重新编译 tesorflow serving，将自定义 op 编译进最后的二进制中。
 
@@ -378,17 +363,6 @@ $ make
 
 执行 `oh_my_go.sh` 脚本：
     $ ./oh_my_go.sh
-
-
-# 上线流程
-参考 [wiki](https://gitlab.vmic.xyz/11118261/easyctr/wikis/%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97)
-
-
-# TODO
-- Tensorboard 添加当前步的梯度统计值
-- Tensorboard 上添加 adagrad 内部的累计平方和梯度
-- 增量训练添加hash冲突解决和特征淘汰功能
-- 粗排dssm op优化
 
 
 # 感谢
