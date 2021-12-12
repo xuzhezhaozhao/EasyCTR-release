@@ -227,7 +227,6 @@ transform = Transform()
  7. categorical_identity: int 型特征离散处理;
  8. cross: 特征交叉;
  9. weighted_categorical: 带权重的离散特征处理;
- 10. attention: attention 结构
 
 通过对应的 `Transform.add_*` 方法添加特征转换.
 
