@@ -22,19 +22,19 @@ from common.estimator import optimizers
 _LEARNING_RATE = 0.05
 
 
-def _check_essm_mmoe_args(args):
+def _check_esmm_mmoe_args(args):
     pass
 
 
-def _build_essm_mmoe_logits(features,
+def _build_esmm_mmoe_logits(features,
                        group_feature_columns,
                        units,
                        is_training,
                        extra_options):
-    _check_essm_mmoe_args(extra_options)
+    _check_esmm_mmoe_args(extra_options)
 
-    bottom_columns_1 = group_feature_columns.get('essm_bottom_1', [])
-    bottom_columns_2 = group_feature_columns.get('essm_bottom_2', [])
+    bottom_columns_1 = group_feature_columns.get('esmm_bottom_1', [])
+    bottom_columns_2 = group_feature_columns.get('esmm_bottom_2', [])
 
     shared_bottom_1 = tf.feature_column.input_layer(features, bottom_columns_1)
     shared_bottom_2 = tf.feature_column.input_layer(features, bottom_columns_2)
@@ -94,7 +94,7 @@ def _build_essm_mmoe_logits(features,
     label2_input = tf.reshape(label2_input, [-1, 128])
 
 
-    essm1 = add_hidden_layers(
+    esmm1 = add_hidden_layers(
         inputs=label1_input,
         hidden_units=[128, 256, 128, 128, 100],
         activation_fn=tf.nn.relu,
@@ -104,8 +104,8 @@ def _build_essm_mmoe_logits(features,
         layer_norm=False,
         use_resnet=False,
         use_densenet=False,
-        scope='essm1')
-    essm2 = add_hidden_layers(
+        scope='esmm1')
+    esmm2 = add_hidden_layers(
         inputs=label1_input,
         hidden_units=[128, 256, 128, 128, 100],
         activation_fn=tf.nn.relu,
@@ -115,8 +115,8 @@ def _build_essm_mmoe_logits(features,
         layer_norm=False,
         use_resnet=False,
         use_densenet=False,
-        scope='essm2')
-    essm3 = add_hidden_layers(
+        scope='esmm2')
+    esmm3 = add_hidden_layers(
         inputs=label2_input,
         hidden_units=[128, 256, 128, 128, 100],
         activation_fn=tf.nn.relu,
@@ -126,8 +126,8 @@ def _build_essm_mmoe_logits(features,
         layer_norm=False,
         use_resnet=False,
         use_densenet=False,
-        scope='essm3')
-    essm4 = add_hidden_layers(
+        scope='esmm3')
+    esmm4 = add_hidden_layers(
         inputs=label2_input,
         hidden_units=[128, 256, 128, 128, 100],
         activation_fn=tf.nn.relu,
@@ -137,16 +137,16 @@ def _build_essm_mmoe_logits(features,
         layer_norm=False,
         use_resnet=False,
         use_densenet=False,
-        scope='essm4')
+        scope='esmm4')
 
-    logits1 = tf.concat([essm1, essm2], axis=1)
+    logits1 = tf.concat([esmm1, esmm2], axis=1)
     logits1 = tf.layers.dense(logits1, units=1, activation=None)
-    logits2 = tf.concat([essm3, essm4], axis=1)
+    logits2 = tf.concat([esmm3, esmm4], axis=1)
     logits2 = tf.layers.dense(logits2, units=1, activation=None)
 
-    return logits1, logits2, essm1, essm2, essm3, essm4
+    return logits1, logits2, esmm1, esmm2, esmm3, esmm4
 
-def _essm_mmoe_model_fn(
+def _esmm_mmoe_model_fn(
         features,
         labels,
         mode,
@@ -167,19 +167,19 @@ def _essm_mmoe_model_fn(
 
     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
-    # Build essm logits
-    essm_parent_scope = 'essm'
+    # Build esmm logits
+    esmm_parent_scope = 'esmm'
     optimizer = optimizers.get_optimizer_instance(
             optimizer, learning_rate=_LEARNING_RATE)
     check_no_sync_replicas_optimizer(optimizer)
-    essm_partitioner = tf.min_max_variable_partitioner(
+    esmm_partitioner = tf.min_max_variable_partitioner(
         max_partitions=num_ps_replicas)
     with tf.variable_scope(
-            essm_parent_scope,
+            esmm_parent_scope,
             values=tuple(six.itervalues(features)),
-            partitioner=essm_partitioner) as scope:
-        essm_absolute_scope = scope.name
-        logits1, logits2, essm1, essm2, essm3, essm4 = _build_essm_mmoe_logits(
+            partitioner=esmm_partitioner) as scope:
+        esmm_absolute_scope = scope.name
+        logits1, logits2, esmm1, esmm2, esmm3, esmm4 = _build_esmm_mmoe_logits(
             features=features,
             group_feature_columns=group_feature_columns,
             units=head.logits_dimension,
@@ -192,10 +192,10 @@ def _essm_mmoe_model_fn(
 
         if mode == tf.estimator.ModeKeys.PREDICT:
             prediction_outputs = {
-                'essm1': essm1,
-                'essm2': essm2,
-                'essm3': essm3,
-                'essm4': essm4,
+                'esmm1': esmm1,
+                'esmm2': esmm2,
+                'esmm3': esmm3,
+                'esmm4': esmm4,
             }
             export_outputs = {
                 'prediction': tf.estimator.export.PredictOutput(
@@ -206,13 +206,13 @@ def _essm_mmoe_model_fn(
                 predictions=prediction_outputs,
                 export_outputs=export_outputs)
 
-        essm_second_target_column = group_feature_columns.get(
-            'essm_second_target', [])
-        essm_second_target = tf.feature_column.input_layer(
-            features, essm_second_target_column)
+        esmm_second_target_column = group_feature_columns.get(
+            'esmm_second_target', [])
+        esmm_second_target = tf.feature_column.input_layer(
+            features, esmm_second_target_column)
 
         loss1 = tf.reduce_sum(binary_crossentropy(labels, prob1))
-        loss2 = tf.reduce_sum(binary_crossentropy(essm_second_target, prob3))
+        loss2 = tf.reduce_sum(binary_crossentropy(esmm_second_target, prob3))
         loss = loss1 + loss2
 
         tf.summary.scalar('loss1', loss1)
@@ -238,8 +238,8 @@ def _essm_mmoe_model_fn(
                 mode, loss=loss, eval_metric_ops=metrics)
 
 
-class ESSMMMOEEstimator(tf.estimator.Estimator):
-    """An estimator for ESSM model.
+class EsmmMMOEEstimator(tf.estimator.Estimator):
+    """An estimator for esmm model.
     """
 
     def __init__(
@@ -263,7 +263,7 @@ class ESSMMMOEEstimator(tf.estimator.Estimator):
             head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
                 n_classes, weight_column, label_vocabulary, loss_reduction, loss_fn)
 
-            return _essm_mmoe_model_fn(
+            return _esmm_mmoe_model_fn(
                 features=features,
                 labels=labels,
                 mode=mode,
@@ -275,6 +275,6 @@ class ESSMMMOEEstimator(tf.estimator.Estimator):
                 run_mode=run_mode,
                 extra_options=extra_options)
 
-        super(ESSMMMOEEstimator, self).__init__(
+        super(esmmMMOEEstimator, self).__init__(
             model_fn=_model_fn, model_dir=model_dir, config=config,
             warm_start_from=warm_start_from)

@@ -17,8 +17,8 @@ from common.common import parse_scheme
 
 from easyctr import input_fn
 from easyctr.dssm import dssm
-from easyctr.essm import essm
-from easyctr.essm import doubletower
+from easyctr.esmm import esmm
+from easyctr.esmm import doubletower
 from easyctr.deepx import deepx
 from easyctr.flags import parser
 from easyctr.configure_lr_and_opt import get_optimizer
@@ -135,8 +135,8 @@ def build_estimator(opts, scheme, conf, item_embeddings=None, item_keys=None):
                 extra_options=extra_options)
         else:
             raise ValueError("Unknow 'deepx_mode' '{}'".format(opts.deepx_mode))
-    elif model_type == 'essm':
-        estimator = essm.ESSMEstimator(
+    elif model_type == 'esmm':
+        estimator = esmm.ESMMEstimator(
             group_columns=group_columns,
             model_dir=opts.model_dir,
             n_classes=2,
